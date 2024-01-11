@@ -48,10 +48,10 @@ func main() {
 		Author:      "alex walker",
 		Version:     "v0.0.1",
 	})
-
 }
 
 type myPlugin struct {
+	ctx         context.Context
 	Name        string
 	Description string
 	Author      string
@@ -60,6 +60,7 @@ type myPlugin struct {
 }
 
 func (m *myPlugin) InitializePlugin(ctx context.Context, info *interop.PluginInfo) (*interop.PluginInfo, error) {
+	m.ctx = ctx
 	m.PluginID = info.PluginId
 	return &interop.PluginInfo{
 		Name:        m.Name,
@@ -97,13 +98,13 @@ func (m myPlugin) Request(ctx context.Context, request *interop.DataMessage) (*i
 	case interop.MessageType_NAME_REQUEST:
 		return &interop.DataMessage{
 			Type: interop.MessageType_NAME_REQUEST,
-			Text: "basic plugin",
+			Text: m.Name,
 			Data: nil,
 		}, nil
 	case interop.MessageType_DESCRIPTION_REQUEST:
 		return &interop.DataMessage{
 			Type: interop.MessageType_NAME_REQUEST,
-			Text: "an example plugin",
+			Text: m.Description,
 			Data: nil,
 		}, nil
 	case interop.MessageType_CONTENT_REQUEST:

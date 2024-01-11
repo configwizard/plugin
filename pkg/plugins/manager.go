@@ -8,9 +8,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/knqyf263/go-plugin/types/known/emptypb"
 	"log"
-	"math/rand"
+	"mime"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 const maxChunkSize = 1 * 1024 // 512 KB
@@ -29,6 +32,7 @@ type Plugin struct {
 	interop.PluginService
 }
 type Manager struct {
+	ctx     context.Context
 	Plugins map[string]Plugin
 }
 
@@ -42,6 +46,7 @@ func Init(pluginPath string, logger *log.Logger) *Manager {
 	}
 
 	var m Manager
+	m.ctx = ctx
 	m.Plugins = make(map[string]Plugin)
 	filepath.Walk(pluginPath, func(path string, info os.FileInfo, err error) error {
 		if !info.IsDir() && filepath.Ext(path) == EXT {
@@ -50,7 +55,7 @@ func Init(pluginPath string, logger *log.Logger) *Manager {
 			} else {
 				pluginTemporaryID := uuid.New().String()
 				if pluginInfo, err := validatePlugin(this, pluginTemporaryID); err != nil {
-					fmt.Println("could not validate Plugin")
+					fmt.Println("could not validate Plugin ", err)
 				} else {
 					i := Info{
 						Name:        pluginInfo.Name,
@@ -59,6 +64,7 @@ func Init(pluginPath string, logger *log.Logger) *Manager {
 						Version:     pluginInfo.Version,
 						PluginId:    pluginInfo.PluginId,
 					}
+
 					m.Plugins[pluginTemporaryID] = Plugin{
 						Info:          i,
 						PluginService: this,
@@ -77,6 +83,7 @@ func Init(pluginPath string, logger *log.Logger) *Manager {
 		if err != nil {
 			log.Fatal("error retrieving content ", err)
 		}
+		//now fire an event to see if the plugin received it
 		fmt.Println("content ", content)
 	}
 	return &m
@@ -107,6 +114,63 @@ func validatePlugin(client interop.PluginService, pluginID string) (*interop.Plu
 	}
 	return info, nil
 }
+func (a *Manager) ServeHTTP(res http.ResponseWriter, req *http.Request) {
+	// Trim leading slash and split URL
+	pathParts := strings.Split(strings.TrimPrefix(req.URL.Path, "/"), "/")
+	// Check if there's at least two parts (UUID and file path)
+	if len(pathParts) < 2 {
+		http.Error(res, "Invalid request format", http.StatusBadRequest)
+		return
+	}
+	pluginID := pathParts[0]
+	requestedFile := strings.Join(pathParts[1:], "/")
+
+	// Check if the URL is correctly formatted
+	if len(pathParts) < 2 {
+		http.Error(res, "Invalid request format", http.StatusBadRequest)
+		return
+	}
+	println("Requesting file:", requestedFile)
+	//now we request the content
+	if p, ok := a.Plugins[pluginID]; !ok {
+		http.Error(res, "Invalid plugin", http.StatusBadRequest)
+		return
+	} else {
+		contentResponse, err := p.Request(a.ctx, &interop.DataMessage{
+			Type: interop.MessageType_CONTENT_REQUEST,
+			Text: requestedFile,
+		})
+		if err != nil {
+			res.WriteHeader(http.StatusBadRequest)
+			res.Write([]byte(fmt.Sprintf("Could not load file %s", requestedFile)))
+			return
+		}
+		// If the file is an HTML file, inject the base tag
+		if strings.HasSuffix(requestedFile, ".html") {
+			content := string(contentResponse.Data)
+			// Inject the base tag after the opening head tag
+			content = strings.Replace(content, "<head>", "<head>\n<base href=\"/"+pluginID+"/\">", 1)
+			contentResponse.Data = []byte(content)
+		}
+		mimeType := "application/octet-stream" // Default MIME type if unknown
+		if ext := filepath.Ext(requestedFile); ext != "" {
+			if detectedType := mime.TypeByExtension(ext); detectedType != "" {
+				mimeType = detectedType
+			}
+		}
+		res.Header().Set("Content-Type", mimeType)
+		res.Write(contentResponse.Data)
+	}
+}
+
+func (a *Manager) RequestPlugins() []Info {
+	var p []Info
+	fmt.Println("plugins requested ", a.Plugins)
+	for _, v := range a.Plugins {
+		p = append(p, v.Info)
+	}
+	return p
+}
 
 // myHostFunctions implements greeting.HostFunctions
 type HostFunctions struct{}
@@ -127,101 +191,32 @@ func (HostFunctions) HostLog(ctx context.Context, request *interop.LogRequest) (
 	return &emptypb.Empty{}, nil
 }
 
-//
-//// HttpGet is embedded into the Plugin and can be called by the Plugin.
-//func (m Manager) RequestSign(ctx context.Context, request *interop.DataMessage) (interop.DataMessage, error) {
-//
-//	fmt.Println("request to sign ", request.GetText())
-//	return interop.DataMessage{
-//		Type: 0,
-//		Text: "",
-//		Data: nil,
-//	}, nil
-//}
-//
-//// Log is embedded into the Plugin and can be called by the Plugin.
-//func (m Manager) Log(ctx context.Context, request *interop.DataMessage) error {
-//	// Use the host logger
-//	log.Println("logging ", request.GetText())
-//	return nil
-//}
-
-//
-//func handleRetrieveNameData(cli interop.InteropServiceClient) string {
-//	ctx, cancel := context.WithCancel(context.Background())
-//	defer cancel()
-//	r, err := cli.SendMessage(ctx, &interop.DataMessage{Type: interop.MessageType_NAME_REQUEST})
-//	if err != nil {
-//		log.Fatalf("could not greet: %v", err)
-//	}
-//	return r.GetText()
-//}
-//
-//// handleStreamData handles the sending and receiving of data streams.
-//func handleStreamData(cli interop.InteropServiceClient, buf *bytes.Buffer) {
-//	ctx, cancel := context.WithCancel(context.Background())
-//	defer cancel()
-//
-//	stream, err := cli.ProcessDataStream(ctx)
-//	if err != nil {
-//		log.Fatalf("Error creating data stream: %v", err)
-//	}
-//
-//	wg := sync.WaitGroup{}
-//	wg.Add(1)
-//
-//	// Send data in a separate goroutine
-//	go func() {
-//		defer wg.Done()
-//		randData := generateRandomData(1024 * 1024) // Generate 1MB of random data
-//		for _, chunk := range chunkData(randData) {
-//			if err := stream.Send(&interop.DataStreamMessage{Data: chunk}); err != nil {
-//				log.Fatalf("Failed to send a chunk: %v", err)
-//			}
-//		}
-//		stream.CloseSend()
-//	}()
-//
-//	// Receive data
-//	for {
-//		in, err := stream.Recv()
-//		if err == io.EOF {
-//			break
-//		}
-//		if err != nil {
-//			log.Fatalf("Failed to receive a chunk: %v", err)
-//		}
-//		processReceivedData(in.Data)
-//	}
-//	wg.Wait()
-//}
-
-// processReceivedData handles the data received from the server.
-func processReceivedData(data []byte) {
-	// Implement your data processing logic here
-	fmt.Println("Received", len(data), "bytes of data")
-}
-
-// generateRandomData creates a slice of random bytes of a given length.
-func generateRandomData(length int) []byte {
-	data := make([]byte, length)
-	rand.Read(data) // Note: This is not cryptographically secure
-	return data
-}
-
-func chunkData(data []byte) [][]byte {
-	var chunks [][]byte
-	for len(data) > 0 {
-		chunkSize := min(maxChunkSize, len(data))
-		chunks = append(chunks, data[:chunkSize])
-		data = data[chunkSize:]
+func (HostFunctions) Containers(ctx context.Context, _ *emptypb.Empty) (*interop.ElementsResponse, error) {
+	var elements []*interop.Element
+	// Example: Create 10 elements
+	for i := 0; i < 10; i++ {
+		elements = append(elements, &interop.Element{Id: "Container " + strconv.Itoa(i)})
 	}
-	return chunks
+	return &interop.ElementsResponse{Elements: elements}, nil
 }
-
-func min(a, b int) int {
-	if a < b {
-		return a
+func (HostFunctions) Container(ctx context.Context, el *interop.Element) (*interop.Element, error) {
+	return &interop.Element{Id: el.Id}, nil
+}
+func (HostFunctions) Objects(ctx context.Context, _ *emptypb.Empty) (*interop.ElementsResponse, error) {
+	var elements []*interop.Element
+	// Example: Create 10 elements
+	for i := 0; i < 10; i++ {
+		elements = append(elements, &interop.Element{Id: "Object " + strconv.Itoa(i)})
 	}
-	return b
+	return &interop.ElementsResponse{Elements: elements}, nil
+}
+func (HostFunctions) Object(ctx context.Context, el *interop.Element) (*interop.Element, error) {
+	return &interop.Element{Id: el.Id}, nil
+}
+func (m Manager) RequestSign(ctx context.Context, request *interop.DataMessage) (interop.DataMessage, error) {
+	return interop.DataMessage{
+		Type: 0,
+		Text: "",
+		Data: nil,
+	}, nil
 }

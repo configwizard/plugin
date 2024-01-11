@@ -1,4 +1,4 @@
-import {RequestPlugins} from "../../wailsjs/go/main/Model";
+import {RequestPlugins} from "../../wailsjs/go/plugins/Manager.js";
 
 const requestPlugins = async () => {
     try {

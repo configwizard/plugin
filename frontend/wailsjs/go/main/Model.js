@@ -6,10 +6,6 @@ export function RequestContainers() {
   return window['go']['main']['Model']['RequestContainers']();
 }
 
-export function RequestPlugins() {
-  return window['go']['main']['Model']['RequestPlugins']();
-}
-
 export function ServeHTTP(arg1, arg2) {
   return window['go']['main']['Model']['ServeHTTP'](arg1, arg2);
 }

@@ -12,4 +12,15 @@
     <p>Welcome to my first webpage.</p>
 </div>
 </body>
+<script>
+    // Inside the plugin's HTML/JS
+    function sendMessageToHost(message) {
+        window.parent.postMessage(message, '*');
+    }
+
+    document.getElementById("myButton").addEventListener("click", function() {
+        sendMessageToHost({ action: "callContainers" });
+    });
+
+</script>
 </html>

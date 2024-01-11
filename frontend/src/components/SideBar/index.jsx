@@ -15,7 +15,7 @@ const Sidebar = () => {
     return (
         <div className="sidebar">
             <Link to="/developer">Developer View</Link>
-            <Link to="/plugin">Plugin View</Link>
+            <Link to="/plugin">Plugins</Link>
             {plugins.map(p => (
                 <div key={p.pluginId} className="sidebar-item">
                     <Link to={`/plugin/${p.pluginId}`}>

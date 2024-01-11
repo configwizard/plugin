@@ -193,6 +193,44 @@ func (x *LogRequest) GetMessage() string {
 	return ""
 }
 
+type Element struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Id string `protobuf:"bytes,1,opt,name=Id,proto3" json:"Id,omitempty"`
+}
+
+func (x *Element) ProtoReflect() protoreflect.Message {
+	panic(`not implemented`)
+}
+
+func (x *Element) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type ElementsResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Elements []*Element `protobuf:"bytes,1,rep,name=elements,proto3" json:"elements,omitempty"`
+}
+
+func (x *ElementsResponse) ProtoReflect() protoreflect.Message {
+	panic(`not implemented`)
+}
+
+func (x *ElementsResponse) GetElements() []*Element {
+	if x != nil {
+		return x.Elements
+	}
+	return nil
+}
+
 // The main service definition
 // go:plugin type=plugin version=1
 type PluginService interface {
@@ -206,4 +244,8 @@ type PluginService interface {
 type HostService interface {
 	SignPayload(context.Context, *DataMessage) (*DataMessage, error)
 	HostLog(context.Context, *LogRequest) (*emptypb.Empty, error)
+	Containers(context.Context, *emptypb.Empty) (*ElementsResponse, error)
+	Container(context.Context, *Element) (*Element, error)
+	Objects(context.Context, *emptypb.Empty) (*ElementsResponse, error)
+	Object(context.Context, *Element) (*Element, error)
 }

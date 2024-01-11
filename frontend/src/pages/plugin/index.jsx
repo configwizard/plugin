@@ -13,6 +13,7 @@ const PluginView = () => {
     return (
         <div>
             <iframe
+                sandbox
                 src={`/${id}/content.html`}
                 style={{ width: '100%', height: '500px', border: 'none' }}
             ></iframe>

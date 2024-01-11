@@ -155,3 +155,103 @@ func (h hostService) HostLog(ctx context.Context, request *LogRequest) (*emptypb
 	}
 	return response, nil
 }
+
+//go:wasm-module env
+//export containers
+//go:linkname _containers
+func _containers(ptr uint32, size uint32) uint64
+
+func (h hostService) Containers(ctx context.Context, request *emptypb.Empty) (*ElementsResponse, error) {
+	buf, err := request.MarshalVT()
+	if err != nil {
+		return nil, err
+	}
+	ptr, size := wasm.ByteToPtr(buf)
+	ptrSize := _containers(ptr, size)
+	wasm.FreePtr(ptr)
+
+	ptr = uint32(ptrSize >> 32)
+	size = uint32(ptrSize)
+	buf = wasm.PtrToByte(ptr, size)
+
+	response := new(ElementsResponse)
+	if err = response.UnmarshalVT(buf); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+//go:wasm-module env
+//export container
+//go:linkname _container
+func _container(ptr uint32, size uint32) uint64
+
+func (h hostService) Container(ctx context.Context, request *Element) (*Element, error) {
+	buf, err := request.MarshalVT()
+	if err != nil {
+		return nil, err
+	}
+	ptr, size := wasm.ByteToPtr(buf)
+	ptrSize := _container(ptr, size)
+	wasm.FreePtr(ptr)
+
+	ptr = uint32(ptrSize >> 32)
+	size = uint32(ptrSize)
+	buf = wasm.PtrToByte(ptr, size)
+
+	response := new(Element)
+	if err = response.UnmarshalVT(buf); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+//go:wasm-module env
+//export objects
+//go:linkname _objects
+func _objects(ptr uint32, size uint32) uint64
+
+func (h hostService) Objects(ctx context.Context, request *emptypb.Empty) (*ElementsResponse, error) {
+	buf, err := request.MarshalVT()
+	if err != nil {
+		return nil, err
+	}
+	ptr, size := wasm.ByteToPtr(buf)
+	ptrSize := _objects(ptr, size)
+	wasm.FreePtr(ptr)
+
+	ptr = uint32(ptrSize >> 32)
+	size = uint32(ptrSize)
+	buf = wasm.PtrToByte(ptr, size)
+
+	response := new(ElementsResponse)
+	if err = response.UnmarshalVT(buf); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+//go:wasm-module env
+//export object
+//go:linkname _object
+func _object(ptr uint32, size uint32) uint64
+
+func (h hostService) Object(ctx context.Context, request *Element) (*Element, error) {
+	buf, err := request.MarshalVT()
+	if err != nil {
+		return nil, err
+	}
+	ptr, size := wasm.ByteToPtr(buf)
+	ptrSize := _object(ptr, size)
+	wasm.FreePtr(ptr)
+
+	ptr = uint32(ptrSize >> 32)
+	size = uint32(ptrSize)
+	buf = wasm.PtrToByte(ptr, size)
+
+	response := new(Element)
+	if err = response.UnmarshalVT(buf); err != nil {
+		return nil, err
+	}
+	return response, nil
+}

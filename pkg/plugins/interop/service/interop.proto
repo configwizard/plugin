@@ -13,7 +13,7 @@ enum MessageType {
   ICON_REQUEST = 3;
   NAME_REQUEST = 4;
   DESCRIPTION_REQUEST = 5;
-  CONTENT_REQUEST =6;
+  CONTENT_REQUEST = 6;
   DATA_PROCESS_REQUEST = 7;
   SIGN_DATA_REQUEST = 8;
 }
@@ -39,6 +39,11 @@ message PluginInfo {
 service HostService {
   rpc SignPayload(DataMessage) returns (DataMessage) {}
   rpc HostLog(LogRequest) returns (google.protobuf.Empty) {}
+
+  rpc Containers(google.protobuf.Empty) returns (ElementsResponse) {}
+  rpc Container(Element) returns (Element) {}
+  rpc Objects(google.protobuf.Empty) returns (ElementsResponse) {}
+  rpc Object(Element) returns (Element) {}
 }
 
 
@@ -56,4 +61,11 @@ message DataStreamMessage {
 
 message LogRequest {
   string message = 1;
+}
+
+message Element {
+  string Id = 1;
+}
+message ElementsResponse {
+  repeated Element elements = 1;
 }

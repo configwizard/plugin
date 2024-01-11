@@ -1,3 +1,24 @@
+export namespace interop {
+	
+	export class DataMessage {
+	    type?: number;
+	    text?: string;
+	    data?: number[];
+	
+	    static createFrom(source: any = {}) {
+	        return new DataMessage(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.type = source["type"];
+	        this.text = source["text"];
+	        this.data = source["data"];
+	    }
+	}
+
+}
+
 export namespace plugins {
 	
 	export class Info {
