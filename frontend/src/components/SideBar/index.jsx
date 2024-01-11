@@ -6,6 +6,11 @@ import './styles.css';
 
 const Sidebar = () => {
     const { plugins } = useContext(PluginContext);
+// Function to handle image load error
+    const handleImageError = (e, pluginId) => {
+        e.target.onerror = null; // Prevents infinite callback loop
+        e.target.src = `/${pluginId}/icon.png`; // Fallback to PNG
+    };
 
     return (
         <div className="sidebar">
@@ -17,10 +22,11 @@ const Sidebar = () => {
                         <div className="plugin-info">
                             <img
                                 src={`/${p.pluginId}/icon.svg`}
-                                alt={`${p.name} Icon`}
+                                alt={`${p.name || p.pluginId} Icon`}
                                 className="plugin-icon"
+                                onError={(e) => handleImageError(e, p.pluginId)}
                             />
-                            <span>{p.name}</span>
+                            <span>{p.name || p.pluginId} {/* Displaying the plugin name or ID */}</span>
                         </div>
                     </Link>
                 </div>

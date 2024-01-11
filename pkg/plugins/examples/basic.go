@@ -5,11 +5,40 @@ import (
 	"embed"
 	"errors"
 	"github.com/configwizard/gui/pkg/plugins/interop"
+	"io/fs"
+	"os"
 	"path/filepath"
 )
 
+var assets fs.FS
+
 //go:embed assets
-var assets embed.FS
+var embeddedAssets embed.FS
+
+var isDevMode string // This will be set based on the build argument
+
+func retrievePageContent(fsys fs.FS, page string) ([]byte, error) {
+	// Join the directory and file name, then read the file
+	var path string = page
+	if isDevMode != "true" {
+		path = filepath.Join("assets", page)
+	}
+	content, err := fs.ReadFile(fsys, path)
+	if err != nil {
+		return nil, err
+	}
+	return content, nil
+}
+
+func init() {
+	if isDevMode == "true" {
+		// Development mode: load assets from disk
+		assets = os.DirFS("path/to/assets") //change this to the absolute path of your assets.
+	} else {
+		// Production mode: use embedded assets
+		assets = embeddedAssets
+	}
+}
 
 // main is required for TinyGo to compile to Wasm.
 func main() {
@@ -56,7 +85,7 @@ func (m myPlugin) Request(ctx context.Context, request *interop.DataMessage) (*i
 	//		Text: plugins.READY,
 	//	}, nil
 	case interop.MessageType_ICON_REQUEST:
-		icon, err := assets.ReadFile("assets/icon.svg")
+		icon, err := retrievePageContent(assets, "icon.svg")
 		if err != nil {
 			return nil, err
 		}
@@ -85,7 +114,7 @@ func (m myPlugin) Request(ctx context.Context, request *interop.DataMessage) (*i
 			})
 			return nil, errors.New("need to supply a content path")
 		}
-		content, err := assets.ReadFile(filepath.Join("assets/", page))
+		content, err := retrievePageContent(assets, page)
 		if err != nil {
 			return nil, err
 		}
