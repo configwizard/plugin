@@ -1,0 +1,15 @@
+.sidebar-item {
+    margin-bottom: 10px;
+}
+
+.plugin-info {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+}
+
+.plugin-icon {
+    width: 30px; /* Adjust the size as needed */
+    height: 30px;
+    margin-right: 10px;
+}

@@ -94,12 +94,13 @@ func (a *Model) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (a *Model) RequestPlugins() []string {
-	var pluginIds []string
-	for k, _ := range a.pluginManager.Plugins {
-		pluginIds = append(pluginIds, k)
+func (a *Model) RequestPlugins() []plugins.Info {
+	var p []plugins.Info
+	fmt.Println("plugins requested ", a.pluginManager.Plugins)
+	for _, v := range a.pluginManager.Plugins {
+		p = append(p, v.Info)
 	}
-	return pluginIds
+	return p
 }
 
 // Greet returns a greeting for the given name

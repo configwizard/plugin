@@ -3,19 +3,19 @@ import { requestPlugins } from '../api/plugins.js'; // Adjust the path as necess
 export const PluginContext = createContext();
 
 export const PluginProvider = ({ children }) => {
-    const [pluginIds, setPluginIds] = useState([]);
+    const [plugins, setPlugins] = useState([]); // Changed from pluginIds to plugins
 
     useEffect(() => {
         const fetchPlugins = async () => {
-            const ids = await requestPlugins();
-            setPluginIds(ids); // Update state with plugin IDs
+            const pluginData = await requestPlugins();
+            setPlugins(pluginData); // Update state with the full plugin data
         };
 
         fetchPlugins();
     }, []);
 
     return (
-        <PluginContext.Provider value={{ pluginIds }}>
+        <PluginContext.Provider value={{ plugins }}>
             {children}
         </PluginContext.Provider>
     );

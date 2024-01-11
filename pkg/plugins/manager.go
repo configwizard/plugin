@@ -16,37 +16,59 @@ import (
 const maxChunkSize = 1 * 1024 // 512 KB
 const EXT = ".wasm"
 
+type Info struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Author      string `json:"author"`
+	Version     string `json:"version"`
+	PluginId    string `json:"pluginId"`
+}
+
+type Plugin struct {
+	Info Info
+	interop.PluginService
+}
 type Manager struct {
-	Plugins map[string]interop.PluginService
+	Plugins map[string]Plugin
 }
 
 func Init(pluginPath string, logger *log.Logger) *Manager {
 	ctx := context.Background()
 
-	// Initialize a plugin loader
+	// Initialize a Plugin loader
 	p, err := interop.NewPluginServicePlugin(ctx)
 	if err != nil {
-		logger.Fatal("error starting plugin service ", err)
+		logger.Fatal("error starting Plugin service ", err)
 	}
 
 	var m Manager
-	m.Plugins = make(map[string]interop.PluginService)
+	m.Plugins = make(map[string]Plugin)
 	filepath.Walk(pluginPath, func(path string, info os.FileInfo, err error) error {
 		if !info.IsDir() && filepath.Ext(path) == EXT {
 			if this, err := p.Load(ctx, path, HostFunctions{}); err != nil {
 				return err
 			} else {
 				pluginTemporaryID := uuid.New().String()
-				if err := validatePlugin(this, pluginTemporaryID); err != nil {
-					fmt.Println("could not validate plugin")
+				if pluginInfo, err := validatePlugin(this, pluginTemporaryID); err != nil {
+					fmt.Println("could not validate Plugin")
 				} else {
-					m.Plugins[pluginTemporaryID] = this
+					i := Info{
+						Name:        pluginInfo.Name,
+						Description: pluginInfo.Description,
+						Author:      pluginInfo.Author,
+						Version:     pluginInfo.Version,
+						PluginId:    pluginInfo.PluginId,
+					}
+					m.Plugins[pluginTemporaryID] = Plugin{
+						Info:          i,
+						PluginService: this,
+					}
 				}
 			}
 		}
 		return nil
 	})
-	//now get the plugin content
+	//now get the Plugin content
 	for _, v := range m.Plugins {
 		content, err := v.Request(ctx, &interop.DataMessage{
 			Type: interop.MessageType_CONTENT_REQUEST,
@@ -60,37 +82,36 @@ func Init(pluginPath string, logger *log.Logger) *Manager {
 	return &m
 }
 
-func validatePlugin(client interop.PluginService, pluginID string) error {
+func validatePlugin(client interop.PluginService, pluginID string) (*interop.PluginInfo, error) {
 	ctx := context.Background()
 	info, err := client.InitializePlugin(ctx, &interop.PluginInfo{
 		PluginId: pluginID,
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	fmt.Println("info ", info)
 	// Perform your validation logic here
 	if info.Name == "" {
-		return errors.New("plugin name is required")
+		return nil, errors.New("Plugin name is required")
 	}
 	if info.Description == "" {
-		return errors.New("plugin description is required")
+		return nil, errors.New("Plugin description is required")
 	}
 	if info.Author == "" {
-		//check that the author is a registered author and plugin is registered plugin
-		return errors.New("plugin author is required")
+		//check that the author is a registered author and Plugin is registered Plugin
+		return nil, errors.New("Plugin author is required")
 	}
 	if info.Version == "" {
-		return errors.New("plugin version is required")
+		return nil, errors.New("Plugin version is required")
 	}
-
-	return nil
+	return info, nil
 }
 
 // myHostFunctions implements greeting.HostFunctions
 type HostFunctions struct{}
 
-// HttpGet is embedded into the plugin and can be called by the plugin.
+// HttpGet is embedded into the Plugin and can be called by the Plugin.
 func (HostFunctions) SignPayload(ctx context.Context, request *interop.DataMessage) (*interop.DataMessage, error) {
 	return &interop.DataMessage{
 		Type: 0,
@@ -99,7 +120,7 @@ func (HostFunctions) SignPayload(ctx context.Context, request *interop.DataMessa
 	}, nil
 }
 
-// Log is embedded into the plugin and can be called by the plugin.
+// Log is embedded into the Plugin and can be called by the Plugin.
 func (HostFunctions) HostLog(ctx context.Context, request *interop.LogRequest) (*emptypb.Empty, error) {
 	// Use the host logger
 	log.Println("logging ", request.GetMessage())
@@ -107,7 +128,7 @@ func (HostFunctions) HostLog(ctx context.Context, request *interop.LogRequest) (
 }
 
 //
-//// HttpGet is embedded into the plugin and can be called by the plugin.
+//// HttpGet is embedded into the Plugin and can be called by the Plugin.
 //func (m Manager) RequestSign(ctx context.Context, request *interop.DataMessage) (interop.DataMessage, error) {
 //
 //	fmt.Println("request to sign ", request.GetText())
@@ -118,7 +139,7 @@ func (HostFunctions) HostLog(ctx context.Context, request *interop.LogRequest) (
 //	}, nil
 //}
 //
-//// Log is embedded into the plugin and can be called by the plugin.
+//// Log is embedded into the Plugin and can be called by the Plugin.
 //func (m Manager) Log(ctx context.Context, request *interop.DataMessage) error {
 //	// Use the host logger
 //	log.Println("logging ", request.GetText())

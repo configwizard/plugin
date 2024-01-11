@@ -1,6 +1,6 @@
 const RequestSign = "request_sign_payload";
 const ContainerListUpdate = "container_list_update";
- const ContainerAddUpdate = "container_add_update";
+const ContainerAddUpdate = "container_add_update";
 const ContainerRemoveUpdate = "container_remove_update";
 const ObjectAddUpdate = "object_add_update";
 const ObjectRemoveUpdate = "object_remove_update";
