@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package interop;
+import "google/protobuf/empty.proto";
+
+option go_package = "pkg/plugins/interop";
+
+// Define message types
+enum MessageType {
+  DEFAULT = 0;
+  INITIALIZE = 1;
+  UNKNOWN_REQUEST = 2;
+  ICON_REQUEST = 3;
+  NAME_REQUEST = 4;
+  DESCRIPTION_REQUEST = 5;
+  CONTENT_REQUEST =6;
+  DATA_PROCESS_REQUEST = 7;
+  SIGN_DATA_REQUEST = 8;
+}
+
+// The main service definition
+// go:plugin type=plugin version=1
+service PluginService {
+  rpc InitializePlugin(PluginInfo) returns (PluginInfo) {}
+  rpc Request(DataMessage) returns (DataMessage) {}
+  rpc ProcessDataStream(stream DataStreamMessage) returns (stream DataStreamMessage) {}
+}
+
+message PluginInfo {
+  string name = 1;
+  string description = 2;
+  string author = 3;
+  string version = 4;
+  string pluginId = 5;
+}
+
+// The host functions embedded into the plugin
+// go:plugin type=host
+service HostService {
+  rpc SignPayload(DataMessage) returns (DataMessage) {}
+  rpc HostLog(LogRequest) returns (google.protobuf.Empty) {}
+}
+
+
+// The message structure for basic communication
+message DataMessage {
+  MessageType type = 1;
+  string text = 2;
+  bytes data = 3;
+}
+
+// The message structure for stream processing
+message DataStreamMessage {
+  bytes data = 1;
+}
+
+message LogRequest {
+  string message = 1;
+}
