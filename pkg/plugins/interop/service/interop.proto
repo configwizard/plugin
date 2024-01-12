@@ -23,6 +23,7 @@ enum MessageType {
 service PluginService {
   rpc InitializePlugin(PluginInfo) returns (PluginInfo) {}
   rpc Request(DataMessage) returns (DataMessage) {}
+  rpc PluginEvent(DataMessage) returns (google.protobuf.Empty) {}
   rpc ProcessDataStream(stream DataStreamMessage) returns (stream DataStreamMessage) {}
 }
 
@@ -39,7 +40,7 @@ message PluginInfo {
 service HostService {
   rpc SignPayload(DataMessage) returns (DataMessage) {}
   rpc HostLog(LogRequest) returns (google.protobuf.Empty) {}
-
+  rpc PluginEvent(DataMessage) returns (google.protobuf.Empty) {}
   rpc Containers(google.protobuf.Empty) returns (ElementsResponse) {}
   rpc Container(Element) returns (Element) {}
   rpc Objects(google.protobuf.Empty) returns (ElementsResponse) {}
@@ -49,9 +50,10 @@ service HostService {
 
 // The message structure for basic communication
 message DataMessage {
-  MessageType type = 1;
-  string text = 2;
-  bytes data = 3;
+  string Id = 1;
+  MessageType type = 2;
+  string text = 3;
+  bytes data = 4;
 }
 
 // The message structure for stream processing

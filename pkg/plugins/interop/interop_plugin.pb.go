@@ -76,6 +76,30 @@ func _plugin_service_request(ptr, size uint32) uint64 {
 	return (uint64(ptr) << uint64(32)) | uint64(size)
 }
 
+//export plugin_service_plugin_event
+func _plugin_service_plugin_event(ptr, size uint32) uint64 {
+	b := wasm.PtrToByte(ptr, size)
+	req := new(DataMessage)
+	if err := req.UnmarshalVT(b); err != nil {
+		return 0
+	}
+	response, err := pluginService.PluginEvent(context.Background(), req)
+	if err != nil {
+		ptr, size = wasm.ByteToPtr([]byte(err.Error()))
+		return (uint64(ptr) << uint64(32)) | uint64(size) |
+			// Indicate that this is the error string by setting the 32-th bit, assuming that
+			// no data exceeds 31-bit size (2 GiB).
+			(1 << 31)
+	}
+
+	b, err = response.MarshalVT()
+	if err != nil {
+		return 0
+	}
+	ptr, size = wasm.ByteToPtr(b)
+	return (uint64(ptr) << uint64(32)) | uint64(size)
+}
+
 //export plugin_service_process_data_stream
 func _plugin_service_process_data_stream(ptr, size uint32) uint64 {
 	b := wasm.PtrToByte(ptr, size)
@@ -143,6 +167,31 @@ func (h hostService) HostLog(ctx context.Context, request *LogRequest) (*emptypb
 	}
 	ptr, size := wasm.ByteToPtr(buf)
 	ptrSize := _host_log(ptr, size)
+	wasm.FreePtr(ptr)
+
+	ptr = uint32(ptrSize >> 32)
+	size = uint32(ptrSize)
+	buf = wasm.PtrToByte(ptr, size)
+
+	response := new(emptypb.Empty)
+	if err = response.UnmarshalVT(buf); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+//go:wasm-module env
+//export plugin_event
+//go:linkname _plugin_event
+func _plugin_event(ptr uint32, size uint32) uint64
+
+func (h hostService) PluginEvent(ctx context.Context, request *DataMessage) (*emptypb.Empty, error) {
+	buf, err := request.MarshalVT()
+	if err != nil {
+		return nil, err
+	}
+	ptr, size := wasm.ByteToPtr(buf)
+	ptrSize := _plugin_event(ptr, size)
 	wasm.FreePtr(ptr)
 
 	ptr = uint32(ptrSize >> 32)

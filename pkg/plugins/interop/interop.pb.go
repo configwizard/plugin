@@ -124,13 +124,21 @@ type DataMessage struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Type MessageType `protobuf:"varint,1,opt,name=type,proto3,enum=interop.MessageType" json:"type,omitempty"`
-	Text string      `protobuf:"bytes,2,opt,name=text,proto3" json:"text,omitempty"`
-	Data []byte      `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"`
+	Id   string      `protobuf:"bytes,1,opt,name=Id,proto3" json:"Id,omitempty"`
+	Type MessageType `protobuf:"varint,2,opt,name=type,proto3,enum=interop.MessageType" json:"type,omitempty"`
+	Text string      `protobuf:"bytes,3,opt,name=text,proto3" json:"text,omitempty"`
+	Data []byte      `protobuf:"bytes,4,opt,name=data,proto3" json:"data,omitempty"`
 }
 
 func (x *DataMessage) ProtoReflect() protoreflect.Message {
 	panic(`not implemented`)
+}
+
+func (x *DataMessage) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
 }
 
 func (x *DataMessage) GetType() MessageType {
@@ -236,6 +244,7 @@ func (x *ElementsResponse) GetElements() []*Element {
 type PluginService interface {
 	InitializePlugin(context.Context, *PluginInfo) (*PluginInfo, error)
 	Request(context.Context, *DataMessage) (*DataMessage, error)
+	PluginEvent(context.Context, *DataMessage) (*emptypb.Empty, error)
 	ProcessDataStream(context.Context, *DataStreamMessage) (*DataStreamMessage, error)
 }
 
@@ -244,6 +253,7 @@ type PluginService interface {
 type HostService interface {
 	SignPayload(context.Context, *DataMessage) (*DataMessage, error)
 	HostLog(context.Context, *LogRequest) (*emptypb.Empty, error)
+	PluginEvent(context.Context, *DataMessage) (*emptypb.Empty, error)
 	Containers(context.Context, *emptypb.Empty) (*ElementsResponse, error)
 	Container(context.Context, *Element) (*Element, error)
 	Objects(context.Context, *emptypb.Empty) (*ElementsResponse, error)

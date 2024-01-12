@@ -44,6 +44,11 @@ func (h _hostService) Instantiate(ctx context.Context, r wazero.Runtime) error {
 		Export("host_log")
 
 	envBuilder.NewFunctionBuilder().
+		WithGoModuleFunction(api.GoModuleFunc(h._PluginEvent), []api.ValueType{i32, i32}, []api.ValueType{i64}).
+		WithParameterNames("offset", "size").
+		Export("plugin_event")
+
+	envBuilder.NewFunctionBuilder().
 		WithGoModuleFunction(api.GoModuleFunc(h._Containers), []api.ValueType{i32, i32}, []api.ValueType{i64}).
 		WithParameterNames("offset", "size").
 		Export("containers")
@@ -106,6 +111,33 @@ func (h _hostService) _HostLog(ctx context.Context, m api.Module, stack []uint64
 		panic(err)
 	}
 	resp, err := h.HostLog(ctx, request)
+	if err != nil {
+		panic(err)
+	}
+	buf, err = resp.MarshalVT()
+	if err != nil {
+		panic(err)
+	}
+	ptr, err := wasm.WriteMemory(ctx, m, buf)
+	if err != nil {
+		panic(err)
+	}
+	ptrLen := (ptr << uint64(32)) | uint64(len(buf))
+	stack[0] = ptrLen
+}
+
+func (h _hostService) _PluginEvent(ctx context.Context, m api.Module, stack []uint64) {
+	offset, size := uint32(stack[0]), uint32(stack[1])
+	buf, err := wasm.ReadMemory(m.Memory(), offset, size)
+	if err != nil {
+		panic(err)
+	}
+	request := new(DataMessage)
+	err = request.UnmarshalVT(buf)
+	if err != nil {
+		panic(err)
+	}
+	resp, err := h.PluginEvent(ctx, request)
 	if err != nil {
 		panic(err)
 	}
@@ -316,6 +348,10 @@ func (p *PluginServicePlugin) Load(ctx context.Context, pluginPath string, hostF
 	if request == nil {
 		return nil, errors.New("plugin_service_request is not exported")
 	}
+	pluginevent := module.ExportedFunction("plugin_service_plugin_event")
+	if pluginevent == nil {
+		return nil, errors.New("plugin_service_plugin_event is not exported")
+	}
 	processdatastream := module.ExportedFunction("plugin_service_process_data_stream")
 	if processdatastream == nil {
 		return nil, errors.New("plugin_service_process_data_stream is not exported")
@@ -337,6 +373,7 @@ func (p *PluginServicePlugin) Load(ctx context.Context, pluginPath string, hostF
 		free:              free,
 		initializeplugin:  initializeplugin,
 		request:           request,
+		pluginevent:       pluginevent,
 		processdatastream: processdatastream,
 	}, nil
 }
@@ -355,6 +392,7 @@ type pluginServicePlugin struct {
 	free              api.Function
 	initializeplugin  api.Function
 	request           api.Function
+	pluginevent       api.Function
 	processdatastream api.Function
 }
 
@@ -474,6 +512,67 @@ func (p *pluginServicePlugin) Request(ctx context.Context, request *DataMessage)
 	}
 
 	response := new(DataMessage)
+	if err = response.UnmarshalVT(bytes); err != nil {
+		return nil, err
+	}
+
+	return response, nil
+}
+func (p *pluginServicePlugin) PluginEvent(ctx context.Context, request *DataMessage) (*emptypb.Empty, error) {
+	data, err := request.MarshalVT()
+	if err != nil {
+		return nil, err
+	}
+	dataSize := uint64(len(data))
+
+	var dataPtr uint64
+	// If the input data is not empty, we must allocate the in-Wasm memory to store it, and pass to the plugin.
+	if dataSize != 0 {
+		results, err := p.malloc.Call(ctx, dataSize)
+		if err != nil {
+			return nil, err
+		}
+		dataPtr = results[0]
+		// This pointer is managed by TinyGo, but TinyGo is unaware of external usage.
+		// So, we have to free it when finished
+		defer p.free.Call(ctx, dataPtr)
+
+		// The pointer is a linear memory offset, which is where we write the name.
+		if !p.module.Memory().Write(uint32(dataPtr), data) {
+			return nil, fmt.Errorf("Memory.Write(%d, %d) out of range of memory size %d", dataPtr, dataSize, p.module.Memory().Size())
+		}
+	}
+
+	ptrSize, err := p.pluginevent.Call(ctx, dataPtr, dataSize)
+	if err != nil {
+		return nil, err
+	}
+
+	resPtr := uint32(ptrSize[0] >> 32)
+	resSize := uint32(ptrSize[0])
+	var isErrResponse bool
+	if (resSize & (1 << 31)) > 0 {
+		isErrResponse = true
+		resSize &^= (1 << 31)
+	}
+
+	// We don't need the memory after deserialization: make sure it is freed.
+	if resPtr != 0 {
+		defer p.free.Call(ctx, uint64(resPtr))
+	}
+
+	// The pointer is a linear memory offset, which is where we write the name.
+	bytes, ok := p.module.Memory().Read(resPtr, resSize)
+	if !ok {
+		return nil, fmt.Errorf("Memory.Read(%d, %d) out of range of memory size %d",
+			resPtr, resSize, p.module.Memory().Size())
+	}
+
+	if isErrResponse {
+		return nil, errors.New(string(bytes))
+	}
+
+	response := new(emptypb.Empty)
 	if err = response.UnmarshalVT(bytes); err != nil {
 		return nil, err
 	}

@@ -5,6 +5,7 @@ import (
 	"embed"
 	"errors"
 	"github.com/configwizard/gui/pkg/plugins/interop"
+	"github.com/knqyf263/go-plugin/types/known/emptypb"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -51,6 +52,7 @@ func main() {
 }
 
 type myPlugin struct {
+	host        interop.HostService
 	ctx         context.Context
 	Name        string
 	Description string
@@ -62,6 +64,7 @@ type myPlugin struct {
 func (m *myPlugin) InitializePlugin(ctx context.Context, info *interop.PluginInfo) (*interop.PluginInfo, error) {
 	m.ctx = ctx
 	m.PluginID = info.PluginId
+	m.host = interop.NewHostService()
 	return &interop.PluginInfo{
 		Name:        m.Name,
 		Description: m.Description,
@@ -70,10 +73,27 @@ func (m *myPlugin) InitializePlugin(ctx context.Context, info *interop.PluginInf
 		PluginId:    m.PluginID,
 	}, nil
 }
-func (m myPlugin) Request(ctx context.Context, request *interop.DataMessage) (*interop.DataMessage, error) {
 
-	hostFunctions := interop.NewHostService()
-	hostFunctions.HostLog(ctx, &interop.LogRequest{
+func (m myPlugin) PluginEvent(ctx context.Context, request *interop.DataMessage) (*emptypb.Empty, error) {
+
+	m.host.HostLog(ctx, &interop.LogRequest{
+		Message: "request data - " + string(request.Data),
+	})
+	switch request.GetText() {
+	case "retrieveContainers":
+		m.host.HostLog(ctx, &interop.LogRequest{
+			Message: "internal_retrieve_Containers event - " + request.GetText(),
+		})
+		if _, err := m.host.PluginEvent(ctx, request); err != nil {
+			m.host.HostLog(ctx, &interop.LogRequest{
+				Message: "error sending - " + err.Error(),
+			})
+		}
+	}
+	return nil, nil
+}
+func (m myPlugin) Request(ctx context.Context, request *interop.DataMessage) (*interop.DataMessage, error) {
+	m.host.HostLog(ctx, &interop.LogRequest{
 		Message: "request - " + request.GetText(),
 	})
 	switch request.GetType() {
@@ -110,7 +130,7 @@ func (m myPlugin) Request(ctx context.Context, request *interop.DataMessage) (*i
 	case interop.MessageType_CONTENT_REQUEST:
 		page := request.GetText() //the page name to retrieve
 		if page == "" {
-			hostFunctions.HostLog(ctx, &interop.LogRequest{
+			m.host.HostLog(ctx, &interop.LogRequest{
 				Message: "need to set a page",
 			})
 			return nil, errors.New("need to supply a content path")

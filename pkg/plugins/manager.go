@@ -7,13 +7,11 @@ import (
 	"github.com/configwizard/gui/pkg/plugins/interop"
 	"github.com/google/uuid"
 	"github.com/knqyf263/go-plugin/types/known/emptypb"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"log"
-	"mime"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 )
 
 const maxChunkSize = 1 * 1024 // 512 KB
@@ -114,66 +112,26 @@ func validatePlugin(client interop.PluginService, pluginID string) (*interop.Plu
 	}
 	return info, nil
 }
-func (a *Manager) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	// Trim leading slash and split URL
-	pathParts := strings.Split(strings.TrimPrefix(req.URL.Path, "/"), "/")
-	// Check if there's at least two parts (UUID and file path)
-	if len(pathParts) < 2 {
-		http.Error(res, "Invalid request format", http.StatusBadRequest)
-		return
-	}
-	pluginID := pathParts[0]
-	requestedFile := strings.Join(pathParts[1:], "/")
 
-	// Check if the URL is correctly formatted
-	if len(pathParts) < 2 {
-		http.Error(res, "Invalid request format", http.StatusBadRequest)
-		return
-	}
-	println("Requesting file:", requestedFile)
-	//now we request the content
-	if p, ok := a.Plugins[pluginID]; !ok {
-		http.Error(res, "Invalid plugin", http.StatusBadRequest)
-		return
-	} else {
-		contentResponse, err := p.Request(a.ctx, &interop.DataMessage{
-			Type: interop.MessageType_CONTENT_REQUEST,
-			Text: requestedFile,
-		})
-		if err != nil {
-			res.WriteHeader(http.StatusBadRequest)
-			res.Write([]byte(fmt.Sprintf("Could not load file %s", requestedFile)))
-			return
-		}
-		// If the file is an HTML file, inject the base tag
-		if strings.HasSuffix(requestedFile, ".html") {
-			content := string(contentResponse.Data)
-			// Inject the base tag after the opening head tag
-			content = strings.Replace(content, "<head>", "<head>\n<base href=\"/"+pluginID+"/\">", 1)
-			contentResponse.Data = []byte(content)
-		}
-		mimeType := "application/octet-stream" // Default MIME type if unknown
-		if ext := filepath.Ext(requestedFile); ext != "" {
-			if detectedType := mime.TypeByExtension(ext); detectedType != "" {
-				mimeType = detectedType
-			}
-		}
-		res.Header().Set("Content-Type", mimeType)
-		res.Write(contentResponse.Data)
-	}
-}
-
-func (a *Manager) RequestPlugins() []Info {
-	var p []Info
-	fmt.Println("plugins requested ", a.Plugins)
-	for _, v := range a.Plugins {
-		p = append(p, v.Info)
-	}
-	return p
-}
+//func (m Manager) PluginEvent(ctx context.Context, request *interop.DataMessage) error {
+//	for _, v := range m.Plugins {
+//		v.PluginEvent(ctx, request)
+//	}
+//	return nil
+//}
 
 // myHostFunctions implements greeting.HostFunctions
 type HostFunctions struct{}
+
+func (m HostFunctions) PluginEvent(ctx context.Context, request *interop.DataMessage) (*emptypb.Empty, error) {
+	switch request.GetText() {
+	case "retrieveContainers":
+		eventMessage := fmt.Sprintf("containersResponse_%s", request.Id)
+		runtime.EventsEmit(ctx, eventMessage, request)
+
+	}
+	return nil, nil
+}
 
 // HttpGet is embedded into the Plugin and can be called by the Plugin.
 func (HostFunctions) SignPayload(ctx context.Context, request *interop.DataMessage) (*interop.DataMessage, error) {
