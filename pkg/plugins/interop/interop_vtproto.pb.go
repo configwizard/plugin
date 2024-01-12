@@ -123,19 +123,26 @@ func (m *DataMessage) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		copy(dAtA[i:], m.Data)
 		i = encodeVarint(dAtA, i, uint64(len(m.Data)))
 		i--
-		dAtA[i] = 0x22
+		dAtA[i] = 0x2a
 	}
 	if len(m.Text) > 0 {
 		i -= len(m.Text)
 		copy(dAtA[i:], m.Text)
 		i = encodeVarint(dAtA, i, uint64(len(m.Text)))
 		i--
-		dAtA[i] = 0x1a
+		dAtA[i] = 0x22
 	}
 	if m.Type != 0 {
 		i = encodeVarint(dAtA, i, uint64(m.Type))
 		i--
-		dAtA[i] = 0x10
+		dAtA[i] = 0x18
+	}
+	if len(m.Action) > 0 {
+		i -= len(m.Action)
+		copy(dAtA[i:], m.Action)
+		i = encodeVarint(dAtA, i, uint64(len(m.Action)))
+		i--
+		dAtA[i] = 0x12
 	}
 	if len(m.Id) > 0 {
 		i -= len(m.Id)
@@ -360,6 +367,10 @@ func (m *DataMessage) SizeVT() (n int) {
 	var l int
 	_ = l
 	l = len(m.Id)
+	if l > 0 {
+		n += 1 + l + sov(uint64(l))
+	}
+	l = len(m.Action)
 	if l > 0 {
 		n += 1 + l + sov(uint64(l))
 	}
@@ -715,6 +726,38 @@ func (m *DataMessage) UnmarshalVT(dAtA []byte) error {
 			m.Id = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Action", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLength
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Action = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Type", wireType)
 			}
@@ -733,7 +776,7 @@ func (m *DataMessage) UnmarshalVT(dAtA []byte) error {
 					break
 				}
 			}
-		case 3:
+		case 4:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Text", wireType)
 			}
@@ -765,7 +808,7 @@ func (m *DataMessage) UnmarshalVT(dAtA []byte) error {
 			}
 			m.Text = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 4:
+		case 5:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Data", wireType)
 			}

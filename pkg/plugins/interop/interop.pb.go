@@ -67,6 +67,38 @@ func (x MessageType) Enum() *MessageType {
 	return p
 }
 
+//todo = decide to use?
+type Action int32
+
+const (
+	Action_Container  Action = 0
+	Action_Containers Action = 1
+	Action_Object     Action = 2
+	Action_Objects    Action = 3
+)
+
+// Enum value maps for Action.
+var (
+	Action_name = map[int32]string{
+		0: "Container",
+		1: "Containers",
+		2: "Object",
+		3: "Objects",
+	}
+	Action_value = map[string]int32{
+		"Container":  0,
+		"Containers": 1,
+		"Object":     2,
+		"Objects":    3,
+	}
+)
+
+func (x Action) Enum() *Action {
+	p := new(Action)
+	*p = x
+	return p
+}
+
 type PluginInfo struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -124,10 +156,11 @@ type DataMessage struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Id   string      `protobuf:"bytes,1,opt,name=Id,proto3" json:"Id,omitempty"`
-	Type MessageType `protobuf:"varint,2,opt,name=type,proto3,enum=interop.MessageType" json:"type,omitempty"`
-	Text string      `protobuf:"bytes,3,opt,name=text,proto3" json:"text,omitempty"`
-	Data []byte      `protobuf:"bytes,4,opt,name=data,proto3" json:"data,omitempty"`
+	Id     string      `protobuf:"bytes,1,opt,name=Id,proto3" json:"Id,omitempty"`
+	Action string      `protobuf:"bytes,2,opt,name=Action,proto3" json:"Action,omitempty"`
+	Type   MessageType `protobuf:"varint,3,opt,name=type,proto3,enum=interop.MessageType" json:"type,omitempty"`
+	Text   string      `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
+	Data   []byte      `protobuf:"bytes,5,opt,name=data,proto3" json:"data,omitempty"`
 }
 
 func (x *DataMessage) ProtoReflect() protoreflect.Message {
@@ -137,6 +170,13 @@ func (x *DataMessage) ProtoReflect() protoreflect.Message {
 func (x *DataMessage) GetId() string {
 	if x != nil {
 		return x.Id
+	}
+	return ""
+}
+
+func (x *DataMessage) GetAction() string {
+	if x != nil {
+		return x.Action
 	}
 	return ""
 }

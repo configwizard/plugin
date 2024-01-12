@@ -18,6 +18,14 @@ enum MessageType {
   SIGN_DATA_REQUEST = 8;
 }
 
+//todo = decide to use?
+enum Action {
+  Container = 0;
+  Containers = 1;
+  Object = 2;
+  Objects = 3;
+}
+
 // The main service definition
 // go:plugin type=plugin version=1
 service PluginService {
@@ -51,9 +59,10 @@ service HostService {
 // The message structure for basic communication
 message DataMessage {
   string Id = 1;
-  MessageType type = 2;
-  string text = 3;
-  bytes data = 4;
+  string Action = 2;
+  MessageType type = 3;
+  string text = 4;
+  bytes data = 5;
 }
 
 // The message structure for stream processing

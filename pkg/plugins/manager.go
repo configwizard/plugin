@@ -124,13 +124,12 @@ func validatePlugin(client interop.PluginService, pluginID string) (*interop.Plu
 type HostFunctions struct{}
 
 func (m HostFunctions) PluginEvent(ctx context.Context, request *interop.DataMessage) (*emptypb.Empty, error) {
-	switch request.GetText() {
-	case "retrieveContainers":
-		eventMessage := fmt.Sprintf("containersResponse_%s", request.Id)
-		runtime.EventsEmit(ctx, eventMessage, request)
-
-	}
-	return nil, nil
+	//eventData := map[string]interface{}{
+	//	"pluginID": request.Id,
+	//	"data":     make([]byte, 0),
+	//}
+	runtime.EventsEmit(ctx, "plugin_backend_event", request)
+	return &emptypb.Empty{}, nil
 }
 
 // HttpGet is embedded into the Plugin and can be called by the Plugin.

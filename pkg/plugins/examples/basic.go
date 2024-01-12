@@ -84,6 +84,7 @@ func (m myPlugin) PluginEvent(ctx context.Context, request *interop.DataMessage)
 		m.host.HostLog(ctx, &interop.LogRequest{
 			Message: "internal_retrieve_Containers event - " + request.GetText(),
 		})
+		request.Action = "example_action"
 		if _, err := m.host.PluginEvent(ctx, request); err != nil {
 			m.host.HostLog(ctx, &interop.LogRequest{
 				Message: "error sending - " + err.Error(),

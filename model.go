@@ -53,7 +53,7 @@ func (a *Model) startup(ctx context.Context) {
 	}
 	a.pluginManager = manager
 	for _, v := range a.pluginManager.Plugins {
-		eventName := fmt.Sprintf("plugin_message_%s", v.Info.PluginId)
+		eventName := fmt.Sprintf("plugin_frontend_event_%s", v.Info.PluginId)
 		runtime.EventsOn(ctx, eventName, func(optionalData ...interface{}) {
 			byt, err := json.Marshal(optionalData)
 			if err != nil {
@@ -61,9 +61,12 @@ func (a *Model) startup(ctx context.Context) {
 				return
 			}
 			_, err = v.PluginEvent(ctx, &interop.DataMessage{
-				Type: 0,
-				Text: "retrieveContainers",
-				Data: byt,
+
+				Type:   0,
+				Id:     v.Info.PluginId,
+				Action: "example_action",
+				Text:   "retrieveContainers",
+				Data:   byt,
 			})
 			if err != nil {
 				fmt.Println("error sending plugin event to plugin ", err)
